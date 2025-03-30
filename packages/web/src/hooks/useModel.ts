@@ -85,6 +85,11 @@ const textModels = [
   ...endpointNames.map(
     (name) => ({ modelId: name, type: 'sagemaker' }) as Model
   ),
+  // My Custom Model
+  {
+    modelId: 'simpleEcho',
+    type: 'mycustom',
+  }
 ];
 const imageGenModels = [
   ...imageModelConfigs.map(
