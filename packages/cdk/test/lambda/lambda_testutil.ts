@@ -1,0 +1,48 @@
+import { APIGatewayProxyEvent, APIGatewayProxyResult } from 'aws-lambda';
+
+export const mockAPIGatewayProxyEvent = (overrides?: Partial<APIGatewayProxyEvent>): APIGatewayProxyEvent => {
+  return {
+    body: "{}",
+    headers: { 'Content-Type': 'application/json' },
+    multiValueHeaders: {},
+    httpMethod: 'GET',
+    isBase64Encoded: false,
+    path: '/',
+    pathParameters: null,
+    queryStringParameters: null,
+    multiValueQueryStringParameters: null,
+    stageVariables: null,
+    requestContext: {
+      accountId: '123456789012',
+      apiId: 'api-id',
+      authorizer: undefined,
+      protocol: 'HTTP/1.1',
+      httpMethod: 'POST',
+      identity: {
+        accessKey: null,
+        accountId: null,
+        apiKey: null,
+        apiKeyId: null,
+        caller: null,
+        clientCert: null,
+        cognitoAuthenticationProvider: null,
+        cognitoAuthenticationType: null,
+        cognitoIdentityId: null,
+        cognitoIdentityPoolId: null,
+        principalOrgId: null,
+        sourceIp: '127.0.0.1',
+        user: null,
+        userAgent: 'Custom User Agent String',
+        userArn: null,
+      },
+      path: '/',
+      stage: 'dev',
+      requestId: 'request-id',
+      requestTimeEpoch: Date.now(),
+      resourceId: 'resource-id',
+      resourcePath: '/',
+    },
+    resource: '/',
+    ...overrides,
+  };
+};

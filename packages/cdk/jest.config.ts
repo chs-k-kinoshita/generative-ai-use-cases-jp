@@ -6,4 +6,5 @@ export default {
     '^.+\\.tsx?$': 'ts-jest',
   },
   snapshotSerializers: ['<rootDir>/test/snapshot-plugin.ts'],
+  globalSetup: "<rootDir>/test/setupEnv.ts",
 };
