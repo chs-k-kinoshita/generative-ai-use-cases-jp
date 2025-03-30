@@ -39,6 +39,7 @@ import GenerateDiagramPage from './pages/GenerateDiagramPage.tsx';
 import WriterPage from './pages/WriterPage.tsx';
 import useUseCases from './hooks/useUseCases';
 import { Toaster } from 'sonner';
+import SimpleEchoChatPage from './pages/SimpleEchoChatPage.tsx';
 
 const ragEnabled: boolean = import.meta.env.VITE_APP_RAG_ENABLED === 'true';
 const ragKnowledgeBaseEnabled: boolean =
@@ -104,6 +105,10 @@ const routes: RouteObject[] = [
         element: <WebContent />,
       }
     : null,
+  {
+    path: '/simpleEcho',
+    element: <SimpleEchoChatPage />,
+  },
   imageGenModelIds.length > 0 && enabled('image')
     ? {
         path: '/image',

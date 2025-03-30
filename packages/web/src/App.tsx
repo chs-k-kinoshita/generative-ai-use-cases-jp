@@ -20,6 +20,7 @@ import {
   PiFlowArrow,
   PiMagicWand,
   PiTreeStructure,
+  PiCactusBold,
 } from 'react-icons/pi';
 import { Outlet } from 'react-router-dom';
 import Drawer, { ItemProps } from './components/Drawer';
@@ -129,6 +130,12 @@ const App: React.FC = () => {
           display: 'usecase' as const,
         }
       : null,
+    {
+      label: 'SimpleEchoチャット',
+      to: '/simpleEcho',
+      icon: <PiCactusBold />,
+      display: 'usecase' as const,
+    },
     enabled('generate')
       ? {
           label: '文章生成',
