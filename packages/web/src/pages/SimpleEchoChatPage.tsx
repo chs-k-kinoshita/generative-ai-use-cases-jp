@@ -40,7 +40,6 @@ const SimpleEchoChatPage: React.FC = () => {
     clear,
     postChat,
     setModelId,
-    // updateSystemContext,
   } = useChat(pathname);
   const { scrollableContainer, setFollowing } = useFollow();
 
@@ -48,7 +47,6 @@ const SimpleEchoChatPage: React.FC = () => {
 
   useEffect(() => {
     setModelId('simpleEcho');
-    // updateSystemContext('');
   }, []);
 
   const onSend = useCallback(() => {
