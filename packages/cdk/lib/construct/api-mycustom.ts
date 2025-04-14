@@ -36,6 +36,12 @@ export class ApiMyCustom extends Construct {
       runtime: Runtime.NODEJS_LATEST,
       entry: './lambda/dbRef.ts',
       timeout: Duration.minutes(1),
+      environment: {
+        SECRETS_ID: 'dev/dbRef/AuroraMySQL',
+      },
+      bundling: {
+        nodeModules: ['@aws-sdk/client-secrets-manager', 'mysql2'],
+      },
     });
     dbRefFunction.grantInvoke(idPool.authenticatedRole);
 
