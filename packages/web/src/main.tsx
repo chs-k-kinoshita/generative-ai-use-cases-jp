@@ -40,6 +40,7 @@ import WriterPage from './pages/WriterPage.tsx';
 import useUseCases from './hooks/useUseCases';
 import { Toaster } from 'sonner';
 import SimpleEchoChatPage from './pages/SimpleEchoChatPage.tsx';
+import DBRefPage from './pages/DBRefPage.tsx';
 
 const ragEnabled: boolean = import.meta.env.VITE_APP_RAG_ENABLED === 'true';
 const ragKnowledgeBaseEnabled: boolean =
@@ -221,6 +222,14 @@ const router = createBrowserRouter([
       </AuthWithUserpool>
     ),
     children: routes,
+  },
+  {
+    path: '/dbref',
+    element: (
+      <AuthWithSAML>
+        <DBRefPage />
+      </AuthWithSAML>
+    )
   },
   ...(useCaseBuilderEnabled
     ? [

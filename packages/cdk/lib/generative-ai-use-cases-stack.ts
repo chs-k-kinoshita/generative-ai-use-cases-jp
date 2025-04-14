@@ -9,6 +9,7 @@ import {
   RagKnowledgeBase,
   Transcribe,
   CommonWebAcl,
+  ApiMyCustom,
 } from './construct';
 import { CfnWebACLAssociation } from 'aws-cdk-lib/aws-wafv2';
 import * as cognito from 'aws-cdk-lib/aws-cognito';
@@ -82,6 +83,13 @@ export class GenerativeAiUseCasesStack extends Stack {
       agents: props.agents,
       guardrailIdentify: props.guardrailIdentifier,
       guardrailVersion: props.guardrailVersion,
+    });
+
+    // MyCustom API
+    new ApiMyCustom(this, 'APIMyCustom', {
+      api: api.api,
+      userPool: auth.userPool,
+      idPool: auth.idPool,
     });
 
     // WAF
