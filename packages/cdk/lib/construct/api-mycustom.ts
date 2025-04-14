@@ -1,8 +1,9 @@
 import { Duration } from 'aws-cdk-lib';
 import { Runtime } from 'aws-cdk-lib/aws-lambda';
+import { Vpc, SecurityGroup, SubnetType } from 'aws-cdk-lib/aws-ec2';
 import { Construct } from 'constructs';
 import { NodejsFunction } from 'aws-cdk-lib/aws-lambda-nodejs';
-import { UserPool, UserPoolClient } from 'aws-cdk-lib/aws-cognito';
+import { UserPool } from 'aws-cdk-lib/aws-cognito';
 import { IdentityPool } from '@aws-cdk/aws-cognito-identitypool-alpha';
 import { Effect, PolicyStatement } from 'aws-cdk-lib/aws-iam';
 import {
@@ -31,6 +32,23 @@ export class ApiMyCustom extends Construct {
       idPool,
     } = props;
 
+    // ✅ 既存の VPC を ID 指定で参照
+    const vpc = Vpc.fromVpcAttributes(this, 'ExistingVPC', {
+      vpcId: 'vpc-0c213a2eb3f67db61',
+      availabilityZones: ['ap-northeast-1a', 'ap-northeast-1c'], // 利用したいAZ
+      publicSubnetIds: ['subnet-0c0ee600939ce0fae', 'subnet-06aa08b93335a7ea5'], // Lambda を配置するサブネットのID
+      // privateSubnetIds: ['subnet-11111111', 'subnet-22222222'], // Lambda を配置するサブネットのID
+    });
+
+    // ✅ 既存の Security Group を ID 指定で参照
+    const sg = SecurityGroup.fromSecurityGroupId(
+      this,
+      'VpcLambdaSG',
+      'sg-0b6452160c3ec0716',
+      {
+        mutable: false, // セキュリティグループを変更しない場合は false でOK
+      }
+    );
     // Lambda
     const dbRefFunction = new NodejsFunction(this, 'DBRefFunction', {
       runtime: Runtime.NODEJS_LATEST,
@@ -42,6 +60,12 @@ export class ApiMyCustom extends Construct {
       bundling: {
         nodeModules: ['@aws-sdk/client-secrets-manager', 'mysql2'],
       },
+      vpc,
+      securityGroups: [sg],
+      vpcSubnets: {
+        // subnets: vpc.selectSubnets({ subnetType: SubnetType.PRIVATE_WITH_EGRESS }).subnets,
+        subnets: vpc.selectSubnets({ subnetType: SubnetType.PUBLIC }).subnets,
+      },
     });
     dbRefFunction.grantInvoke(idPool.authenticatedRole);
 
@@ -52,6 +76,9 @@ export class ApiMyCustom extends Construct {
       actions: ['secretsmanager:GetSecretValue'],
     });
     dbRefFunction.role?.addToPrincipalPolicy(dbRefFunctionPolicy);
+    dbRefFunction.role?.addManagedPolicy({
+      managedPolicyArn: 'arn:aws:iam::aws:policy/service-role/AWSLambdaVPCAccessExecutionRole',
+    });
 
     // Api Gateway
     const authorizer = new CognitoUserPoolsAuthorizer(this, 'Authorizer', {

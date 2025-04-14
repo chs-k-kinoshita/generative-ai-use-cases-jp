@@ -24,7 +24,7 @@ const DBRefPage: React.FC = () => {
 
   // 使用例
   // const query = "?key=TABLE_A,column_1.valueXXX,column_2.yyy&key=TABLE_B,column_1.valueYYY";
-  const query = "?key=TABLE_A,column_1.valueXXX,column_2.yyy";
+  const query = "?key=TABLE_A,column_1.1,column_2.100";
   const parsedResult = parseQueryParams(query);
   console.log(parsedResult);
   const onClickTest = async () => {
