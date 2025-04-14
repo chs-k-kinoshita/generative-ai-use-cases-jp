@@ -35,9 +35,8 @@ export class ApiMyCustom extends Construct {
     // ✅ 既存の VPC を ID 指定で参照
     const vpc = Vpc.fromVpcAttributes(this, 'ExistingVPC', {
       vpcId: 'vpc-0c213a2eb3f67db61',
-      availabilityZones: ['ap-northeast-1a', 'ap-northeast-1c'], // 利用したいAZ
-      publicSubnetIds: ['subnet-0c0ee600939ce0fae', 'subnet-06aa08b93335a7ea5'], // Lambda を配置するサブネットのID
-      // privateSubnetIds: ['subnet-11111111', 'subnet-22222222'], // Lambda を配置するサブネットのID
+      availabilityZones: ['ap-northeast-1a'], // 利用したいAZ
+      privateSubnetIds: ['subnet-043d15d8d34fc9d5f'], // Lambda を配置するサブネットのID
     });
 
     // ✅ 既存の Security Group を ID 指定で参照
@@ -63,8 +62,8 @@ export class ApiMyCustom extends Construct {
       vpc,
       securityGroups: [sg],
       vpcSubnets: {
-        // subnets: vpc.selectSubnets({ subnetType: SubnetType.PRIVATE_WITH_EGRESS }).subnets,
-        subnets: vpc.selectSubnets({ subnetType: SubnetType.PUBLIC }).subnets,
+        subnets: vpc.selectSubnets({ subnetType: SubnetType.PRIVATE_WITH_EGRESS }).subnets,
+        // subnets: vpc.selectSubnets({ subnetType: SubnetType.PUBLIC }).subnets,
       },
     });
     dbRefFunction.grantInvoke(idPool.authenticatedRole);
@@ -76,9 +75,9 @@ export class ApiMyCustom extends Construct {
       actions: ['secretsmanager:GetSecretValue'],
     });
     dbRefFunction.role?.addToPrincipalPolicy(dbRefFunctionPolicy);
-    dbRefFunction.role?.addManagedPolicy({
-      managedPolicyArn: 'arn:aws:iam::aws:policy/service-role/AWSLambdaVPCAccessExecutionRole',
-    });
+    // dbRefFunction.role?.addManagedPolicy({
+    //   managedPolicyArn: 'arn:aws:iam::aws:policy/service-role/AWSLambdaVPCAccessExecutionRole',
+    // });
 
     // Api Gateway
     const authorizer = new CognitoUserPoolsAuthorizer(this, 'Authorizer', {

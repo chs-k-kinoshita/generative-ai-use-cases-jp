@@ -51,11 +51,13 @@ async function selectValues(connection: mysql.Connection, dbRefInfo: DBRefTableI
 }
 
 async function createConnection(dbName: string, secretId: string) {
+  console.log("GetSecretValueCommand:" + secretId);
   const response = await secretClient.send(new GetSecretValueCommand({ SecretId: secretId }));
   if (!response.SecretString) {
     throw new Error('Secrets Managerからシークレット文字列を取得できませんでした。');
   }
   const secretValue = JSON.parse(response.SecretString);
+  console.log("secretValue:" + secretValue);
   const connection = await mysql.createConnection({
     host: secretValue.host,
     user: secretValue.username,
