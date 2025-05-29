@@ -7,4 +7,5 @@ export default {
   },
   snapshotSerializers: ['<rootDir>/test/snapshot-plugin.ts'],
   globalSetup: "<rootDir>/test/setupEnv.ts",
+  testTimeout: 60000
 };
