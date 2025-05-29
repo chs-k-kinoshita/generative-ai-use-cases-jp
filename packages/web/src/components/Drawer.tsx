@@ -1,12 +1,14 @@
 import React, { useMemo, useState } from 'react';
 import { BaseProps } from '../@types/common';
 import { useNavigate } from 'react-router-dom';
-import { PiMagnifyingGlass } from 'react-icons/pi';
+import { PiMagnifyingGlass, PiGear } from 'react-icons/pi';
 import ExpandableMenu from './ExpandableMenu';
 import ChatList from './ChatList';
 import DrawerItem, { DrawerItemProps } from './DrawerItem';
 import DrawerBase from './DrawerBase';
 import Switch from './Switch';
+import Button from './Button';
+import { useTranslation } from 'react-i18next';
 
 export type ItemProps = DrawerItemProps & {
   display: 'usecase' | 'tool' | 'none';
@@ -17,6 +19,7 @@ type Props = BaseProps & {
 };
 
 const Drawer: React.FC<Props> = (props) => {
+  const { t } = useTranslation();
   const navigate = useNavigate();
 
   const usecases = useMemo(() => {
@@ -38,6 +41,8 @@ const Drawer: React.FC<Props> = (props) => {
   const useCaseBuilderEnabled: boolean =
     import.meta.env.VITE_APP_USE_CASE_BUILDER_ENABLED === 'true';
 
+  const [settingVisibility, setSettingVisibility] = useState(false);
+
   return (
     <>
       <DrawerBase>
@@ -45,7 +50,7 @@ const Drawer: React.FC<Props> = (props) => {
           <>
             <Switch
               className="mx-3 my-2"
-              label="ビルダーモード"
+              label={t('drawer.builder_mode')}
               checked={false}
               onSwitch={() => {
                 navigate('/use-case-builder');
@@ -54,8 +59,17 @@ const Drawer: React.FC<Props> = (props) => {
             <div className="border-b" />
           </>
         )}
-        <div className="text-aws-smile mx-3 my-1 text-xs">
-          ユースケース <span className="text-gray-400">(生成 AI)</span>
+        <div className="text-aws-smile mx-3 my-1 flex items-center justify-between text-xs">
+          <div>
+            {t('drawer.use_cases')}{' '}
+            <span className="text-gray-400">{t('drawer.generative_ai')}</span>
+          </div>
+          <PiGear
+            className="cursor-pointer text-base text-white"
+            onClick={() => {
+              setSettingVisibility(!settingVisibility);
+            }}
+          />
         </div>
         <div className="scrollbar-thin scrollbar-thumb-white ml-2 mr-1 h-full overflow-y-auto">
           {usecases.map((item, idx) => (
@@ -65,15 +79,29 @@ const Drawer: React.FC<Props> = (props) => {
               icon={item.icon}
               to={item.to}
               sub={item.sub}
+              settingVisibility={settingVisibility}
             />
           ))}
+
+          {settingVisibility && (
+            <div className="my-2 flex w-full justify-center">
+              <Button
+                className="w-full"
+                onClick={() => {
+                  setSettingVisibility(false);
+                }}
+                outlined>
+                {t('drawer.done')}
+              </Button>
+            </div>
+          )}
         </div>
         <div className="border-b" />
         {tools.length > 0 && (
           <>
             <ExpandableMenu
-              title="ツール"
-              subTitle="(AI サービス)"
+              title={t('drawer.tools')}
+              subTitle={`(${t('drawer.ai_services')})`}
               className="mx-3 my-2 text-xs">
               <div className="mb-2 ml-2 mr-1">
                 {tools.map((item, idx) => (
@@ -90,13 +118,13 @@ const Drawer: React.FC<Props> = (props) => {
             <div className="border-b" />
           </>
         )}
-        <ExpandableMenu title="会話履歴" className="mx-3 my-2 text-xs">
+        <ExpandableMenu title={t('chat.history')} className="mx-3 my-2 text-xs">
           <div className="relative mb-2 ml-2 mr-1 w-full pl-1.5 pr-7 pt-1">
             <input
               className="bg-aws-squid-ink h-7 w-full rounded-full border border-white pl-8 text-sm text-white focus:border-white focus:ring-0"
               type="text"
               value={searchQuery}
-              placeholder="件名で検索"
+              placeholder={t('chat.search_by_title')}
               onChange={(event) => {
                 setSearchQuery(event.target.value ?? '');
               }}

@@ -1,3 +1,4 @@
+import { SupportedMimeType } from '@generative-ai-use-cases/common';
 import { PrimaryKey } from './base';
 import { AdditionalModelRequestFields } from './text';
 
@@ -35,9 +36,9 @@ export type MessageAttributes = {
 
 export type UnrecordedMessage = {
   role: Role;
-  // テキスト
+  // Text
   content: string;
-  // 追加データ（画像など）
+  // Additional data (image, etc.)
   trace?: string;
   extraData?: ExtraData[];
   llmType?: string;
@@ -58,6 +59,7 @@ export type UploadedFileType = {
   file: File;
   name: string;
   type: 'image' | 'video' | 'file';
+  mimeType: SupportedMimeType;
   base64EncodedData?: string;
   s3Url?: string;
   uploading: boolean;

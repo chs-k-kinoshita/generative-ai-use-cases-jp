@@ -1,9 +1,12 @@
-import { Model, ModelConfiguration } from 'generative-ai-use-cases-jp';
-import { modelFeatureFlags } from '@generative-ai-use-cases-jp/common';
+import { Model, ModelConfiguration } from 'generative-ai-use-cases';
+import {
+  CRI_PREFIX_PATTERN,
+  modelMetadata,
+} from '@generative-ai-use-cases/common';
 
 const modelRegion = import.meta.env.VITE_APP_MODEL_REGION;
 
-// 環境変数からモデル名などを取得
+// Get model names and other environment variables
 const bedrockModelConfigs = (
   JSON.parse(import.meta.env.VITE_APP_MODEL_IDS) as ModelConfiguration[]
 )
@@ -18,9 +21,13 @@ const bedrockModelIds: string[] = bedrockModelConfigs.map(
 const modelIdsInModelRegion: string[] = bedrockModelConfigs
   .filter((model) => model.region === modelRegion)
   .map((model) => model.modelId);
-
+const duplicateBaseModelIds = new Set(
+  bedrockModelIds
+    .map((modelId) => modelId.replace(CRI_PREFIX_PATTERN, ''))
+    .filter((item, index, arr) => arr.indexOf(item) !== index)
+);
 const visionModelIds: string[] = bedrockModelIds.filter(
-  (modelId) => modelFeatureFlags[modelId].image
+  (modelId) => modelMetadata[modelId].flags.image
 );
 const visionEnabled: boolean = visionModelIds.length > 0;
 
@@ -57,6 +64,21 @@ const videoModelConfigs = (
 const videoGenModelIds: string[] = videoModelConfigs.map(
   (model) => model.modelId
 );
+const speechToSpeechModelConfigs = (
+  JSON.parse(
+    import.meta.env.VITE_APP_SPEECH_TO_SPEECH_MODEL_IDS
+  ) as ModelConfiguration[]
+)
+  .map(
+    (model: ModelConfiguration): ModelConfiguration => ({
+      modelId: model.modelId.trim(),
+      region: model.region.trim(),
+    })
+  )
+  .filter((model) => model.modelId);
+const speechToSpeechModelIds: string[] = speechToSpeechModelConfigs.map(
+  (model) => model.modelId
+);
 
 const agentNames: string[] = JSON.parse(import.meta.env.VITE_APP_AGENT_NAMES)
   .map((name: string) => name.trim())
@@ -72,7 +94,7 @@ const getFlows = () => {
 
 const flows = getFlows();
 
-// モデルオブジェクトの定義
+// Define model objects
 const textModels = [
   ...bedrockModelConfigs.map(
     (model) =>
@@ -111,6 +133,16 @@ const videoGenModels = [
       }) as Model
   ),
 ];
+const speechToSpeechModels = [
+  ...speechToSpeechModelConfigs.map(
+    (model) =>
+      ({
+        modelId: model.modelId,
+        type: 'bedrock',
+        region: model.region,
+      }) as Model
+  ),
+];
 const agentModels = [
   ...agentNames.map(
     (name) => ({ modelId: name, type: 'bedrockAgent' }) as Model
@@ -135,11 +167,24 @@ export const findModelByModelId = (modelId: string) => {
 
 const searchAgent = agentNames.find((name) => name.includes('Search'));
 
+const modelDisplayName = (modelId: string): string => {
+  // If there are multiple instances of the same model, add CRI suffix to the display name
+  let displayName = modelMetadata[modelId]?.displayName ?? modelId;
+  if (duplicateBaseModelIds.has(modelId.replace(CRI_PREFIX_PATTERN, ''))) {
+    const criMatch = modelId.match(CRI_PREFIX_PATTERN);
+    if (criMatch) {
+      displayName += ` (${criMatch[1].toUpperCase()})`;
+    }
+  }
+  return displayName;
+};
+
 export const MODELS = {
   modelRegion: modelRegion,
   modelIds: [...bedrockModelIds, ...endpointNames],
   modelIdsInModelRegion,
-  modelFeatureFlags: modelFeatureFlags,
+  modelMetadata,
+  modelDisplayName,
   visionModelIds: visionModelIds,
   visionEnabled: visionEnabled,
   imageGenModelIds: imageGenModelIds,
@@ -153,4 +198,6 @@ export const MODELS = {
   searchAgent: searchAgent,
   flows,
   flowChatEnabled: flows.length > 0,
+  speechToSpeechModelIds: speechToSpeechModelIds,
+  speechToSpeechModels: speechToSpeechModels,
 };

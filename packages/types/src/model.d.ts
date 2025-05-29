@@ -1,4 +1,4 @@
-// Feature Flag の型を定義
+// Define the type of Feature Flag
 export type FeatureFlags = {
   // Model Feature Flags
   text?: boolean;
@@ -12,11 +12,20 @@ export type FeatureFlags = {
 
   embedding?: boolean;
   reranking?: boolean;
+
+  speechToSpeech?: boolean;
+
   // Additional Flags
   light?: boolean;
+  legacy?: boolean;
 };
 
 export type ModelConfiguration = {
   modelId: string;
   region: string;
+};
+
+export type ModelMetadata = {
+  flags: FeatureFlags;
+  displayName: string;
 };

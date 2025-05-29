@@ -9,30 +9,32 @@ import {
   RagKnowledgeBase,
   Transcribe,
   CommonWebAcl,
+  SpeechToSpeech,
 } from './construct';
 import { CfnWebACLAssociation } from 'aws-cdk-lib/aws-wafv2';
 import * as cognito from 'aws-cdk-lib/aws-cognito';
 import { ICertificate } from 'aws-cdk-lib/aws-certificatemanager';
-import { Agent } from 'generative-ai-use-cases-jp';
+import { Agent } from 'generative-ai-use-cases';
 import { UseCaseBuilder } from './construct/use-case-builder';
 import { ProcessedStackInput } from './stack-input';
+import { allowS3AccessWithSourceIpCondition } from './utils/s3-access-policy';
 
 export interface GenerativeAiUseCasesStackProps extends StackProps {
-  params: ProcessedStackInput;
+  readonly params: ProcessedStackInput;
   // RAG Knowledge Base
-  knowledgeBaseId?: string;
-  knowledgeBaseDataSourceBucketName?: string;
+  readonly knowledgeBaseId?: string;
+  readonly knowledgeBaseDataSourceBucketName?: string;
   // Agent
-  agents?: Agent[];
+  readonly agents?: Agent[];
   // Video Generation
-  videoBucketRegionMap: Record<string, string>;
+  readonly videoBucketRegionMap: Record<string, string>;
   // Guardrail
-  guardrailIdentifier?: string;
-  guardrailVersion?: string;
+  readonly guardrailIdentifier?: string;
+  readonly guardrailVersion?: string;
   // WAF
-  webAclId?: string;
+  readonly webAclId?: string;
   // Custom Domain
-  cert?: ICertificate;
+  readonly cert?: ICertificate;
 }
 
 export class GenerativeAiUseCasesStack extends Stack {
@@ -73,7 +75,8 @@ export class GenerativeAiUseCasesStack extends Stack {
       queryDecompositionEnabled: params.queryDecompositionEnabled,
       rerankingModelId: params.rerankingModelId,
       crossAccountBedrockRoleArn: params.crossAccountBedrockRoleArn,
-
+      allowedIpV4AddressRanges: params.allowedIpV4AddressRanges,
+      allowedIpV6AddressRanges: params.allowedIpV6AddressRanges,
       userPool: auth.userPool,
       idPool: auth.idPool,
       userPoolClient: auth.client,
@@ -106,6 +109,15 @@ export class GenerativeAiUseCasesStack extends Stack {
       });
     }
 
+    // SpeechToSpeech (for bidirectional communication)
+    const speechToSpeech = new SpeechToSpeech(this, 'SpeechToSpeech', {
+      envSuffix: params.env,
+      api: api.api,
+      userPool: auth.userPool,
+      speechToSpeechModelIds: params.speechToSpeechModelIds,
+      crossAccountBedrockRoleArn: params.crossAccountBedrockRoleArn,
+    });
+
     // Web Frontend
     const web = new Web(this, 'Api', {
       // Auth
@@ -135,6 +147,9 @@ export class GenerativeAiUseCasesStack extends Stack {
       agentNames: api.agentNames,
       inlineAgents: params.inlineAgents,
       useCaseBuilderEnabled: params.useCaseBuilderEnabled,
+      speechToSpeechNamespace: speechToSpeech.namespace,
+      speechToSpeechEventApiEndpoint: speechToSpeech.eventApiEndpoint,
+      speechToSpeechModelIds: params.speechToSpeechModelIds,
       // Frontend
       hiddenUseCases: params.hiddenUseCases,
       // Custom Domain
@@ -148,6 +163,7 @@ export class GenerativeAiUseCasesStack extends Stack {
     if (params.ragEnabled) {
       const rag = new Rag(this, 'Rag', {
         envSuffix: params.env,
+        kendraIndexLanguage: params.kendraIndexLanguage,
         kendraIndexArnInCdkContext: params.kendraIndexArn,
         kendraDataSourceBucketName: params.kendraDataSourceBucketName,
         kendraIndexScheduleEnabled: params.kendraIndexScheduleEnabled,
@@ -157,11 +173,22 @@ export class GenerativeAiUseCasesStack extends Stack {
         api: api.api,
       });
 
-      // File API から data source の Bucket のファイルをダウンロードできるようにする
-      // 既存の Kendra を import している場合、data source が S3 ではない可能性がある
-      // その際は rag.dataSourceBucketName が undefined になって権限は付与されない
-      if (rag.dataSourceBucketName) {
-        api.allowDownloadFile(rag.dataSourceBucketName);
+      // Allow downloading files from the File API to the data source Bucket
+      // If you are importing existing Kendra, there is a possibility that the data source is not S3
+      // In that case, rag.dataSourceBucketName will be undefined and the permission will not be granted
+      if (
+        rag.dataSourceBucketName &&
+        api.getFileDownloadSignedUrlFunction.role
+      ) {
+        allowS3AccessWithSourceIpCondition(
+          rag.dataSourceBucketName,
+          api.getFileDownloadSignedUrlFunction.role,
+          'read',
+          {
+            ipv4: params.allowedIpV4AddressRanges,
+            ipv6: params.allowedIpV6AddressRanges,
+          }
+        );
       }
     }
 
@@ -172,13 +199,25 @@ export class GenerativeAiUseCasesStack extends Stack {
       if (knowledgeBaseId) {
         new RagKnowledgeBase(this, 'RagKnowledgeBase', {
           modelRegion: params.modelRegion,
+          crossAccountBedrockRoleArn: params.crossAccountBedrockRoleArn,
           knowledgeBaseId: knowledgeBaseId,
           userPool: auth.userPool,
           api: api.api,
         });
-        // File API から data source の Bucket のファイルをダウンロードできるようにする
-        if (props.knowledgeBaseDataSourceBucketName) {
-          api.allowDownloadFile(props.knowledgeBaseDataSourceBucketName);
+        // Allow downloading files from the File API to the data source Bucket
+        if (
+          props.knowledgeBaseDataSourceBucketName &&
+          api.getFileDownloadSignedUrlFunction.role
+        ) {
+          allowS3AccessWithSourceIpCondition(
+            props.knowledgeBaseDataSourceBucketName,
+            api.getFileDownloadSignedUrlFunction.role,
+            'read',
+            {
+              ipv4: params.allowedIpV4AddressRanges,
+              ipv6: params.allowedIpV6AddressRanges,
+            }
+          );
         }
       }
     }
@@ -196,6 +235,8 @@ export class GenerativeAiUseCasesStack extends Stack {
       userPool: auth.userPool,
       idPool: auth.idPool,
       api: api.api,
+      allowedIpV4AddressRanges: params.allowedIpV4AddressRanges,
+      allowedIpV6AddressRanges: params.allowedIpV6AddressRanges,
     });
 
     // Cfn Outputs
@@ -303,6 +344,18 @@ export class GenerativeAiUseCasesStack extends Stack {
 
     new CfnOutput(this, 'HiddenUseCases', {
       value: JSON.stringify(params.hiddenUseCases),
+    });
+
+    new CfnOutput(this, 'SpeechToSpeechNamespace', {
+      value: speechToSpeech.namespace,
+    });
+
+    new CfnOutput(this, 'SpeechToSpeechEventApiEndpoint', {
+      value: speechToSpeech.eventApiEndpoint,
+    });
+
+    new CfnOutput(this, 'SpeechToSpeechModelIds', {
+      value: JSON.stringify(params.speechToSpeechModelIds),
     });
 
     this.userPool = auth.userPool;

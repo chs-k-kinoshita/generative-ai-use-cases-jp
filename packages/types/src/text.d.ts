@@ -1,10 +1,18 @@
 // ConverseAPI
+
+import { InferenceConfiguration } from '@aws-sdk/client-bedrock-runtime';
+
+export type PromptCacheField = 'messages' | 'system' | 'tools';
+export type PromptCachingConfig = {
+  autoCacheFields: {
+    [key in PromptCacheField]?: boolean;
+  };
+};
+
 // https://docs.aws.amazon.com/bedrock/latest/APIReference/API_runtime_Converse.html#API_runtime_Converse_RequestSyntax
 export type ConverseInferenceParams = {
-  maxTokens?: number;
-  stopSequences?: string[];
-  temperature?: number;
-  topP?: number;
+  inferenceConfig?: InferenceConfiguration;
+  promptCachingConfig?: PromptCachingConfig;
 };
 
 export type UsecaseConverseInferenceParams = {
@@ -107,7 +115,7 @@ export type DeepSeekParams = {
 
 // Cohere Command R / Command R+
 // https://docs.aws.amazon.com/bedrock/latest/userguide/model-parameters-cohere-command-r-plus.html
-// stream, tools, tools_results は2024/05現在Bedrockで対応していないため、コメントアウトしています。
+// stream, tools, tools_results is not supported in Bedrock yet, so commented out.
 export type CommandRParams = {
   message?: string;
   chat_history?: {
