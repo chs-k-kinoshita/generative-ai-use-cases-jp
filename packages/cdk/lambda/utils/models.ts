@@ -16,6 +16,7 @@ import {
   AmazonGeneralImageParams,
   AmazonAdvancedImageParams,
   StreamingChunk,
+  Metadata,
 } from 'generative-ai-use-cases';
 import {
   ConverseCommandInput,
@@ -239,6 +240,14 @@ const USECASE_DEFAULT_PARAMS: UsecaseConverseInferenceParams = {
     promptCachingConfig: {
       autoCacheFields: {
         system: true,
+      },
+    },
+  },
+  '/meeting-minutes': {
+    promptCachingConfig: {
+      autoCacheFields: {
+        system: true,
+        messages: true,
       },
     },
   },
@@ -545,7 +554,10 @@ const extractConverseOutput = (
         return '';
       })
       .join('\n');
-    return { text: responseText, trace: reasoningText };
+    const metadata = {
+      usage: output.usage,
+    } as Metadata;
+    return { text: responseText, trace: reasoningText, metadata };
   }
 
   return { text: '', trace: '' };
@@ -563,6 +575,11 @@ const extractConverseStreamOutput = (
     const reasoningText =
       output.contentBlockDelta.delta?.reasoningContent?.text;
     return { text: '', trace: reasoningText };
+  } else if (output.metadata && output.metadata.usage) {
+    return {
+      text: '',
+      metadata: { usage: output.metadata.usage } as Metadata,
+    };
   }
 
   return { text: '', trace: '' };

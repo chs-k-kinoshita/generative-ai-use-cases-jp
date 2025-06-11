@@ -25,6 +25,7 @@ export const stackInputSchema = z.object({
       video: z.boolean().optional(),
       videoAnalyzer: z.boolean().optional(),
       diagram: z.boolean().optional(),
+      meetingMinutes: z.boolean().optional(),
       voiceChat: z.boolean().optional(),
     })
     .default({}),
@@ -132,6 +133,8 @@ export const stackInputSchema = z.object({
     )
     .default([]),
   inlineAgents: z.boolean().default(false),
+  // MCP
+  mcpEnabled: z.boolean().default(false),
   // Guardrail
   guardrailEnabled: z.boolean().default(false),
   // Usecase builder
