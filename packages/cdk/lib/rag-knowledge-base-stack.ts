@@ -68,7 +68,7 @@ EPS: $1.25
 | | 12/31 ended year | |
 
 2021	2022
-Cash Flow:		
+Cash Flow:
 Operating Activity	$ 46,327	$ 46,752
 Investing Activity	(58,154)	(37,601)
 Financial Activity	6,291	9,718`;
@@ -100,7 +100,7 @@ class OpenSearchServerlessIndex extends Construct {
       this,
       'OpenSearchServerlessIndex',
       {
-        runtime: lambda.Runtime.NODEJS_LATEST,
+        runtime: lambda.Runtime.NODEJS_22_X,
         code: lambda.Code.fromAsset('custom-resources'),
         handler: 'oss-index.handler',
         uuid: UUID,
