@@ -135,6 +135,7 @@ const App: React.FC = () => {
           to: '/mcp',
           icon: <PiGraph />,
           display: 'usecase' as const,
+          sub: 'Experimental',
         }
       : null,
     flowChatEnabled
@@ -157,6 +158,7 @@ const App: React.FC = () => {
           to: '/voice-chat',
           icon: <PiMicrophoneBold />,
           display: 'usecase' as const,
+          sub: 'Experimental',
         }
       : null,
     enabled('generate')
