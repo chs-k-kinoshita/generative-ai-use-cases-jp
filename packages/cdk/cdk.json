@@ -16,7 +16,7 @@
   },
   "context": {
     "env": "",
-    "ragEnabled": false,
+    "ragEnabled": true,
     "kendraIndexArn": null,
     "kendraIndexLanguage": "ja",
     "kendraDataSourceBucketName": null,
@@ -32,7 +32,7 @@
     "embeddingModelId": "amazon.titan-embed-text-v2:0",
     "rerankingModelId": null,
     "queryDecompositionEnabled": false,
-    "selfSignUpEnabled": true,
+    "selfSignUpEnabled": false,
     "allowedSignUpEmailDomains": null,
     "samlAuthEnabled": false,
     "samlCognitoDomainName": "",
