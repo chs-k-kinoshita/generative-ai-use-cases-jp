@@ -1,13 +1,13 @@
 import { create } from 'zustand';
 import useRagApi from './useRagApi';
-import { QueryResultItem } from '@aws-sdk/client-kendra';
+import { RetrieveResultItem } from '@aws-sdk/client-kendra';
 import { produce } from 'immer';
 
 const useSearchState = create<{
   loading: boolean;
   query: string;
   setQuery: (query: string) => void;
-  resultItems: QueryResultItem[];
+  resultItems: RetrieveResultItem[];
   search: () => Promise<void>;
 }>((set, get) => {
   const api = useRagApi();
@@ -22,7 +22,7 @@ const useSearchState = create<{
       resultItems: [],
     }));
 
-    const res = await api.query(get().query).finally(() => {
+    const res = await api.retrieve(get().query).finally(() => {
       set(() => ({
         loading: false,
       }));

@@ -2,7 +2,6 @@ import React, { useCallback, useEffect, useRef } from 'react';
 import { PiMagnifyingGlass, PiSpinnerGap, PiX } from 'react-icons/pi';
 import { Link } from 'react-router-dom';
 import useRag from '../hooks/useSearch';
-import HighlightText from '../components/HighlightText';
 import ButtonIcon from '../components/ButtonIcon';
 import useRagFile from '../hooks/useRagFile';
 
@@ -38,7 +37,7 @@ const KendraSearchPage: React.FC = () => {
       </div>
       <div className="text-sm text-gray-600">
         <div>
-          この機能は、Amazon Kendra の標準機能である Query API
+          この機能は、Amazon Kendra の標準機能である <span className="font-bold">Retreive API</span>
           で検索を行います。
           <span className="font-bold">
             生成 AI は利用していません。RAG は
@@ -80,37 +79,23 @@ const KendraSearchPage: React.FC = () => {
                     downloadDoc(result.DocumentURI!);
                   }
                 }}>
-                {result.DocumentTitle?.Text}
+                {result.DocumentTitle!}
                 {downloading && (
                   <PiSpinnerGap className="ml-2 inline-block animate-spin" />
                 )}
               </a>
               <div className="mb-2 text-xs">{result.DocumentURI}</div>
-              <HighlightText
-                textWithHighlights={
-                  result.DocumentExcerpt ?? {
-                    Text: '',
-                    Highlights: [],
-                  }
-                }
-              />
+              <div>{result.Content}</div>
             </div>
           ) : (
             <div key={result.Id}>
               <Link
                 className="text-aws-sky font-semibold"
                 to={result.DocumentURI!}>
-                {result.DocumentTitle?.Text}
+                {result.DocumentTitle!}
               </Link>
               <div className="mb-2 text-xs">{result.DocumentURI}</div>
-              <HighlightText
-                textWithHighlights={
-                  result.DocumentExcerpt ?? {
-                    Text: '',
-                    Highlights: [],
-                  }
-                }
-              />
+              <div>{result.Content}</div>
             </div>
           )
         )}
