@@ -23,6 +23,7 @@ import {
   PiTreeStructure,
   PiNotebook,
   PiGraph,
+  PiMagnifyingGlass,
 } from 'react-icons/pi';
 import { Outlet } from 'react-router-dom';
 import Drawer, { ItemProps } from './components/Drawer';
@@ -245,6 +246,14 @@ const App: React.FC = () => {
           label: t('navigation.promptOptimization'),
           to: '/optimize',
           icon: <PiMagicWand />,
+          display: 'tool' as const,
+        }
+      : null,
+    ragEnabled
+      ? {
+          label: 'Kendra 検索',
+          to: '/kendra',
+          icon: <PiMagnifyingGlass />,
           display: 'tool' as const,
         }
       : null,
