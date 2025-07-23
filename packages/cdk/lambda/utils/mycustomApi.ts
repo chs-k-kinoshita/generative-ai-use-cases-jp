@@ -2,7 +2,7 @@
 import {
   InvokeInterface,
   InvokeStreamInterface,
-} from 'generative-ai-use-cases-jp';
+} from 'generative-ai-use-cases';
 import { streamingChunk } from './streamingChunk';
 
 export type ApiInterface = {
