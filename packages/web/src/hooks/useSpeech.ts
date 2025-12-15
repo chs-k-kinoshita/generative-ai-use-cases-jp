@@ -17,7 +17,7 @@ const LanguageVoiceMapping: Record<string, VoiceId> = {
   de: 'Vicki',
 };
 
-const useSpeach = (language: string) => {
+const useSpeech = (language: string) => {
   const { t } = useTranslation();
   const [loading, setLoading] = useState(false);
   const [voiceId, setVoiceId] = useState<VoiceId>('Joanna');
@@ -33,7 +33,7 @@ const useSpeach = (language: string) => {
 
   return {
     loading,
-    synthesizeSpeach: async (text: string): Promise<string> => {
+    synthesizeSpeech: async (text: string): Promise<string> => {
       setLoading(true);
 
       const token = (await fetchAuthSession()).tokens?.idToken?.toString();
@@ -46,7 +46,14 @@ const useSpeach = (language: string) => {
       const region = import.meta.env.VITE_APP_REGION;
       const userPoolId = import.meta.env.VITE_APP_USER_POOL_ID;
       const idPoolId = import.meta.env.VITE_APP_IDENTITY_POOL_ID;
-      const cognito = new CognitoIdentityClient({ region });
+      const cognitoIdentityPoolProxyEndpoint = import.meta.env
+        .VITE_APP_COGNITO_IDENTITY_POOL_PROXY_ENDPOINT;
+      const cognito = new CognitoIdentityClient({
+        region,
+        ...(cognitoIdentityPoolProxyEndpoint
+          ? { endpoint: cognitoIdentityPoolProxyEndpoint }
+          : {}),
+      });
       const providerName = `cognito-idp.${region}.amazonaws.com/${userPoolId}`;
 
       const polly = new Polly({
@@ -80,4 +87,4 @@ const useSpeach = (language: string) => {
   };
 };
 
-export default useSpeach;
+export default useSpeech;

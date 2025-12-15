@@ -10,10 +10,15 @@ export type Model = {
   modelParameters?: AdditionalModelRequestFields;
   sessionId?: string;
   region?: string;
+  inferenceProfileArn?: string;
 };
 
-export type Agent = {
+export type AgentInfo = {
   displayName: string;
+  description: string;
+};
+
+export type Agent = AgentInfo & {
   agentId: string;
   aliasId: string;
 };

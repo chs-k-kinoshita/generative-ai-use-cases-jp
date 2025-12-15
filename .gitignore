@@ -10,3 +10,8 @@ site*/
 .cache
 
 cdk.context.json
+# Jest snapshot fix files
+*.snap.fix
+# Coding Asssitant
+.kiro/settings
+.kiro/specs

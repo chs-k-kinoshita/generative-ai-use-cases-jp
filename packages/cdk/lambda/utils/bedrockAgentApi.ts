@@ -4,6 +4,7 @@ import {
 } from '@aws-sdk/client-bedrock-agent';
 import {
   DependencyFailedException,
+  InputFile,
   InvokeAgentCommand,
   Parameter,
   ServiceQuotaExceededException,
@@ -20,6 +21,7 @@ import {
   BraveSearchResult,
 } from 'generative-ai-use-cases';
 import { streamingChunk } from './streamingChunk';
+import { convertToSafeFilename } from './fileNameUtils';
 import {
   initBedrockAgentClient,
   initBedrockAgentRuntimeClient,
@@ -30,10 +32,10 @@ const s3Client = new S3Client({});
 
 // Agent information
 const agentMap: AgentMap = JSON.parse(process.env.AGENT_MAP || '{}');
-type AgentInfo = {
+type AgentConfig = {
   codeInterpreterEnabled: boolean;
 };
-const agentInfoMap: { [aliasId: string]: AgentInfo } = {};
+const agentConfigMap: { [aliasId: string]: AgentConfig } = {};
 
 // Convert s3://<BUCKET>/<PREFIX> to https://s3.<REGION>.amazonaws.com/<BUCKET>/<PREFIX>
 const convertS3UriToUrl = (s3Uri: string, region: string): string => {
@@ -58,9 +60,9 @@ const encodeUrlString = (str: string): string => {
   }
 };
 
-const getAgentInfo = async (agentId: string, agentAliasId: string) => {
+const getagentConfig = async (agentId: string, agentAliasId: string) => {
   // Get Agent Info if not cached
-  if (!agentInfoMap[agentAliasId]) {
+  if (!agentConfigMap[agentAliasId]) {
     const bedrockAgentClient = await initBedrockAgentClient({
       region: MODEL_REGION,
     });
@@ -82,13 +84,13 @@ const getAgentInfo = async (agentId: string, agentAliasId: string) => {
       })
     );
     // Cache Agent Info
-    agentInfoMap[agentAliasId] = {
+    agentConfigMap[agentAliasId] = {
       codeInterpreterEnabled: !!actionGroups.actionGroupSummaries?.find(
         (actionGroup) => actionGroup.actionGroupName === 'CodeInterpreterAction'
       ),
     };
   }
-  return agentInfoMap[agentAliasId];
+  return agentConfigMap[agentAliasId];
 };
 
 const bedrockAgentApi: ApiInterface = {
@@ -103,25 +105,43 @@ const bedrockAgentApi: ApiInterface = {
       }
       const agentId = agentMap[model.modelId].agentId;
       const agentAliasId = agentMap[model.modelId].aliasId;
-      const agentInfo = await getAgentInfo(agentId, agentAliasId);
+      const agentConfig = await getagentConfig(agentId, agentAliasId);
 
       // Invoke Agent
       const command = new InvokeAgentCommand({
         sessionState: {
-          files:
-            messages[messages.length - 1].extraData?.map((file) => ({
-              name: file.name.replace(/[^a-zA-Z0-9\s\-()[\].]/g, 'X'), // If the file name contains Japanese, it is not recognized, so replace it
-              source: {
-                sourceType: 'BYTE_CONTENT',
-                byteContent: {
-                  mediaType: file.source.mediaType,
-                  data: Buffer.from(file.source.data, 'base64'),
+          conversationHistory: {
+            // slice: remove system prompt and lastest user messagee
+            messages: messages
+              .slice(1, messages.length - 1)
+              .map((m: UnrecordedMessage) => {
+                return {
+                  role: m.role as 'user' | 'assistant',
+                  content: [
+                    {
+                      text: m.content,
+                    },
+                  ],
+                };
+              }),
+          },
+          files: messages
+            .flatMap((m: UnrecordedMessage) => {
+              return m.extraData?.map((file) => ({
+                name: convertToSafeFilename(file.name),
+                source: {
+                  sourceType: 'BYTE_CONTENT',
+                  byteContent: {
+                    mediaType: file.source.mediaType,
+                    data: Buffer.from(file.source.data, 'base64'),
+                  },
                 },
-              },
-              useCase: agentInfo.codeInterpreterEnabled
-                ? 'CODE_INTERPRETER'
-                : 'CHAT',
-            })) || [],
+                useCase: agentConfig.codeInterpreterEnabled
+                  ? 'CODE_INTERPRETER'
+                  : 'CHAT',
+              })) as InputFile[] | undefined;
+            })
+            .filter((f): f is InputFile => f !== undefined),
         },
         agentId: agentId,
         agentAliasId: agentAliasId,

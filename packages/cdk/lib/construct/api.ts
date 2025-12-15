@@ -6,6 +6,7 @@ import {
   LambdaIntegration,
   RestApi,
   ResponseType,
+  EndpointType,
 } from 'aws-cdk-lib/aws-apigateway';
 import { UserPool, UserPoolClient } from 'aws-cdk-lib/aws-cognito';
 import { IFunction } from 'aws-cdk-lib/aws-lambda';
@@ -13,14 +14,24 @@ import { Construct } from 'constructs';
 import { NodejsFunction } from 'aws-cdk-lib/aws-lambda-nodejs';
 import { Table } from 'aws-cdk-lib/aws-dynamodb';
 import { IdentityPool } from 'aws-cdk-lib/aws-cognito-identitypool';
-import { Effect, PolicyStatement } from 'aws-cdk-lib/aws-iam';
+import {
+  AnyPrincipal,
+  Effect,
+  PolicyDocument,
+  PolicyStatement,
+} from 'aws-cdk-lib/aws-iam';
 import {
   BlockPublicAccess,
   Bucket,
   BucketEncryption,
   HttpMethods,
 } from 'aws-cdk-lib/aws-s3';
-import { Agent, AgentMap, ModelConfiguration } from 'generative-ai-use-cases';
+import {
+  Agent,
+  AgentInfo,
+  AgentMap,
+  ModelConfiguration,
+} from 'generative-ai-use-cases';
 import {
   BEDROCK_IMAGE_GEN_MODELS,
   BEDROCK_VIDEO_GEN_MODELS,
@@ -29,6 +40,11 @@ import {
 } from '@generative-ai-use-cases/common';
 import { allowS3AccessWithSourceIpCondition } from '../utils/s3-access-policy';
 import { LAMBDA_RUNTIME_NODEJS } from '../../consts';
+import {
+  InterfaceVpcEndpoint,
+  IVpc,
+  ISecurityGroup,
+} from 'aws-cdk-lib/aws-ec2';
 
 export interface BackendApiProps {
   // Context Params
@@ -37,13 +53,14 @@ export interface BackendApiProps {
   readonly imageGenerationModelIds: ModelConfiguration[];
   readonly videoGenerationModelIds: ModelConfiguration[];
   readonly videoBucketRegionMap: Record<string, string>;
-  readonly endpointNames: string[];
+  readonly endpointNames: ModelConfiguration[];
   readonly queryDecompositionEnabled: boolean;
   readonly rerankingModelId?: string | null;
   readonly customAgents: Agent[];
   readonly crossAccountBedrockRoleArn?: string | null;
   readonly allowedIpV4AddressRanges?: string[] | null;
   readonly allowedIpV6AddressRanges?: string[] | null;
+  readonly additionalS3Buckets?: Bucket[];
 
   // Resource
   readonly userPool: UserPool;
@@ -55,6 +72,12 @@ export interface BackendApiProps {
   readonly agents?: Agent[];
   readonly guardrailIdentify?: string;
   readonly guardrailVersion?: string;
+
+  // Closed network
+  readonly vpc?: IVpc;
+  readonly securityGroups?: ISecurityGroup[];
+  readonly apiGatewayVpcEndpoint?: InterfaceVpcEndpoint;
+  readonly cognitoUserPoolProxyEndpoint?: string;
 }
 
 export class Api extends Construct {
@@ -66,8 +89,8 @@ export class Api extends Construct {
   readonly modelIds: ModelConfiguration[];
   readonly imageGenerationModelIds: ModelConfiguration[];
   readonly videoGenerationModelIds: ModelConfiguration[];
-  readonly endpointNames: string[];
-  readonly agentNames: string[];
+  readonly endpointNames: ModelConfiguration[];
+  readonly agents: AgentInfo[];
   readonly fileBucket: Bucket;
   readonly getFileDownloadSignedUrlFunction: IFunction;
 
@@ -88,6 +111,9 @@ export class Api extends Construct {
       knowledgeBaseId,
       queryDecompositionEnabled,
       rerankingModelId,
+      vpc,
+      securityGroups,
+      apiGatewayVpcEndpoint,
     } = props;
     const agents: Agent[] = [...(props.agents ?? []), ...props.customAgents];
 
@@ -173,6 +199,8 @@ export class Api extends Construct {
       bundling: {
         nodeModules: ['@aws-sdk/client-bedrock-runtime'],
       },
+      vpc,
+      securityGroups,
     });
 
     const predictStreamFunction = new NodejsFunction(this, 'PredictStream', {
@@ -183,6 +211,7 @@ export class Api extends Construct {
       environment: {
         USER_POOL_ID: userPool.userPoolId,
         USER_POOL_CLIENT_ID: userPoolClient.userPoolClientId,
+        USER_POOL_PROXY_ENDPOINT: props.cognitoUserPoolProxyEndpoint ?? '',
         MODEL_REGION: modelRegion,
         MODEL_IDS: JSON.stringify(modelIds),
         IMAGE_GENERATION_MODEL_IDS: JSON.stringify(imageGenerationModelIds),
@@ -208,6 +237,8 @@ export class Api extends Construct {
           '@aws-sdk/client-sagemaker-runtime',
         ],
       },
+      vpc,
+      securityGroups,
     });
     fileBucket.grantReadWrite(predictStreamFunction);
     predictStreamFunction.grantInvoke(idPool.authenticatedRole);
@@ -226,6 +257,8 @@ export class Api extends Construct {
       environment: {
         MODEL_REGION: modelRegion,
       },
+      vpc,
+      securityGroups,
     });
     invokeFlowFunction.grantInvoke(idPool.authenticatedRole);
 
@@ -250,6 +283,8 @@ export class Api extends Construct {
           ? { GUARDRAIL_VERSION: props.guardrailVersion }
           : {}),
       },
+      vpc,
+      securityGroups,
     });
     table.grantWriteData(predictTitleFunction);
 
@@ -267,6 +302,8 @@ export class Api extends Construct {
       bundling: {
         nodeModules: ['@aws-sdk/client-bedrock-runtime'],
       },
+      vpc,
+      securityGroups,
     });
 
     const generateVideoFunction = new NodejsFunction(this, 'GenerateVideo', {
@@ -287,6 +324,8 @@ export class Api extends Construct {
       bundling: {
         nodeModules: ['@aws-sdk/client-bedrock-runtime'],
       },
+      vpc,
+      securityGroups,
     });
     for (const region of Object.keys(props.videoBucketRegionMap)) {
       const bucketName = props.videoBucketRegionMap[region];
@@ -321,6 +360,8 @@ export class Api extends Construct {
       bundling: {
         nodeModules: ['@aws-sdk/client-bedrock-runtime'],
       },
+      vpc,
+      securityGroups,
     });
     for (const region of Object.keys(props.videoBucketRegionMap)) {
       const bucketName = props.videoBucketRegionMap[region];
@@ -356,6 +397,8 @@ export class Api extends Construct {
       bundling: {
         nodeModules: ['@aws-sdk/client-bedrock-runtime'],
       },
+      vpc,
+      securityGroups,
     });
     table.grantReadWriteData(listVideoJobs);
     copyVideoJob.grantInvoke(listVideoJobs);
@@ -370,6 +413,8 @@ export class Api extends Construct {
         VIDEO_GENERATION_MODEL_IDS: JSON.stringify(videoGenerationModelIds),
         TABLE_NAME: table.tableName,
       },
+      vpc,
+      securityGroups,
     });
     table.grantWriteData(deleteVideoJob);
 
@@ -386,6 +431,8 @@ export class Api extends Construct {
         environment: {
           MODEL_REGION: modelRegion,
         },
+        vpc,
+        securityGroups,
       }
     );
     optimizePromptFunction.grantInvoke(idPool.authenticatedRole);
@@ -397,6 +444,8 @@ export class Api extends Construct {
       environment: {
         BUCKET_NAME: fileBucket.bucketName,
       },
+      vpc,
+      securityGroups,
     });
     // Grant S3 write permissions with source IP condition
     if (getSignedUrlFunction.role) {
@@ -420,11 +469,15 @@ export class Api extends Construct {
         timeout: Duration.minutes(15),
         environment: {
           CROSS_ACCOUNT_BEDROCK_ROLE_ARN: crossAccountBedrockRoleArn ?? '',
+          MODEL_REGION: modelRegion,
         },
+        vpc,
+        securityGroups,
       }
     );
     // Grant S3 read permissions with source IP condition
     if (getFileDownloadSignedUrlFunction.role) {
+      // Default bucket permissions
       allowS3AccessWithSourceIpCondition(
         fileBucket.bucketName,
         getFileDownloadSignedUrlFunction.role,
@@ -434,6 +487,21 @@ export class Api extends Construct {
           ipv6: props.allowedIpV6AddressRanges,
         }
       );
+
+      // Additional buckets permissions (AgentCore, external buckets, etc.)
+      if (props.additionalS3Buckets) {
+        props.additionalS3Buckets.forEach((bucket) => {
+          allowS3AccessWithSourceIpCondition(
+            bucket.bucketName,
+            getFileDownloadSignedUrlFunction.role!,
+            'read',
+            {
+              ipv4: props.allowedIpV4AddressRanges,
+              ipv6: props.allowedIpV6AddressRanges,
+            }
+          );
+        });
+      }
     }
 
     // If SageMaker Endpoint exists, grant permission
@@ -444,9 +512,9 @@ export class Api extends Construct {
         actions: ['sagemaker:DescribeEndpoint', 'sagemaker:InvokeEndpoint'],
         resources: endpointNames.map(
           (endpointName) =>
-            `arn:aws:sagemaker:${modelRegion}:${
+            `arn:aws:sagemaker:${endpointName.region}:${
               Stack.of(this).account
-            }:endpoint/${endpointName}`
+            }:endpoint/${endpointName.modelId}`
         ),
       });
       predictFunction.role?.addToPrincipalPolicy(sagemakerPolicy);
@@ -467,7 +535,13 @@ export class Api extends Construct {
       const bedrockPolicy = new PolicyStatement({
         effect: Effect.ALLOW,
         resources: ['*'],
-        actions: ['bedrock:*', 'logs:*'],
+        actions: [
+          'bedrock:*',
+          'logs:*',
+          'aws-marketplace:Subscribe',
+          'aws-marketplace:Unsubscribe',
+          'aws-marketplace:ViewSubscriptions',
+        ],
       });
       predictStreamFunction.role?.addToPrincipalPolicy(bedrockPolicy);
       predictFunction.role?.addToPrincipalPolicy(bedrockPolicy);
@@ -514,6 +588,8 @@ export class Api extends Construct {
       environment: {
         TABLE_NAME: table.tableName,
       },
+      vpc,
+      securityGroups,
     });
     table.grantWriteData(createChatFunction);
 
@@ -524,6 +600,8 @@ export class Api extends Construct {
       environment: {
         TABLE_NAME: table.tableName,
       },
+      vpc,
+      securityGroups,
     });
     table.grantReadWriteData(deleteChatFunction);
 
@@ -536,6 +614,8 @@ export class Api extends Construct {
         STATS_TABLE_NAME: props.statsTable.tableName,
         BUCKET_NAME: fileBucket.bucketName,
       },
+      vpc,
+      securityGroups,
     });
     table.grantReadWriteData(createMessagesFunction);
     props.statsTable.grantReadWriteData(createMessagesFunction);
@@ -550,6 +630,8 @@ export class Api extends Construct {
         environment: {
           TABLE_NAME: table.tableName,
         },
+        vpc,
+        securityGroups,
       }
     );
     table.grantReadWriteData(updateChatTitleFunction);
@@ -561,6 +643,8 @@ export class Api extends Construct {
       environment: {
         TABLE_NAME: table.tableName,
       },
+      vpc,
+      securityGroups,
     });
     table.grantReadData(listChatsFunction);
 
@@ -571,6 +655,8 @@ export class Api extends Construct {
       environment: {
         TABLE_NAME: table.tableName,
       },
+      vpc,
+      securityGroups,
     });
     table.grantReadData(findChatbyIdFunction);
 
@@ -581,6 +667,8 @@ export class Api extends Construct {
       environment: {
         TABLE_NAME: table.tableName,
       },
+      vpc,
+      securityGroups,
     });
     table.grantReadData(listMessagesFunction);
 
@@ -591,6 +679,8 @@ export class Api extends Construct {
       environment: {
         TABLE_NAME: table.tableName,
       },
+      vpc,
+      securityGroups,
     });
     table.grantReadWriteData(updateFeedbackFunction);
 
@@ -598,6 +688,8 @@ export class Api extends Construct {
       runtime: LAMBDA_RUNTIME_NODEJS,
       entry: './lambda/getWebText.ts',
       timeout: Duration.minutes(15),
+      vpc,
+      securityGroups,
     });
 
     const createShareId = new NodejsFunction(this, 'CreateShareId', {
@@ -607,6 +699,8 @@ export class Api extends Construct {
       environment: {
         TABLE_NAME: table.tableName,
       },
+      vpc,
+      securityGroups,
     });
     table.grantReadWriteData(createShareId);
 
@@ -617,6 +711,8 @@ export class Api extends Construct {
       environment: {
         TABLE_NAME: table.tableName,
       },
+      vpc,
+      securityGroups,
     });
     table.grantReadData(getSharedChat);
 
@@ -627,6 +723,8 @@ export class Api extends Construct {
       environment: {
         TABLE_NAME: table.tableName,
       },
+      vpc,
+      securityGroups,
     });
     table.grantReadData(findShareId);
 
@@ -637,6 +735,8 @@ export class Api extends Construct {
       environment: {
         TABLE_NAME: table.tableName,
       },
+      vpc,
+      securityGroups,
     });
     table.grantReadWriteData(deleteShareId);
 
@@ -650,6 +750,8 @@ export class Api extends Construct {
         environment: {
           TABLE_NAME: table.tableName,
         },
+        vpc,
+        securityGroups,
       }
     );
     table.grantReadData(listSystemContextsFunction);
@@ -664,6 +766,8 @@ export class Api extends Construct {
         environment: {
           TABLE_NAME: table.tableName,
         },
+        vpc,
+        securityGroups,
       }
     );
     table.grantWriteData(createSystemContextFunction);
@@ -678,6 +782,8 @@ export class Api extends Construct {
         environment: {
           TABLE_NAME: table.tableName,
         },
+        vpc,
+        securityGroups,
       }
     );
     table.grantReadWriteData(updateSystemContextTitleFunction);
@@ -692,6 +798,8 @@ export class Api extends Construct {
         environment: {
           TABLE_NAME: table.tableName,
         },
+        vpc,
+        securityGroups,
       }
     );
     table.grantReadWriteData(deleteSystemContextFunction);
@@ -703,6 +811,8 @@ export class Api extends Construct {
       environment: {
         BUCKET_NAME: fileBucket.bucketName,
       },
+      vpc,
+      securityGroups,
     });
     fileBucket.grantDelete(deleteFileFunction);
 
@@ -714,6 +824,8 @@ export class Api extends Construct {
         TABLE_NAME: table.tableName,
         STATS_TABLE_NAME: props.statsTable.tableName,
       },
+      vpc,
+      securityGroups,
     });
     table.grantReadData(getTokenUsageFunction);
     props.statsTable.grantReadData(getTokenUsageFunction);
@@ -738,6 +850,31 @@ export class Api extends Construct {
       },
       cloudWatchRole: true,
       defaultMethodOptions: commonAuthorizerProps,
+      endpointConfiguration: vpc
+        ? {
+            types: [EndpointType.PRIVATE],
+            vpcEndpoints: [apiGatewayVpcEndpoint!],
+          }
+        : undefined,
+      policy: vpc
+        ? new PolicyDocument({
+            statements: [apiGatewayVpcEndpoint!].map(
+              (e: InterfaceVpcEndpoint) => {
+                return new PolicyStatement({
+                  effect: Effect.ALLOW,
+                  principals: [new AnyPrincipal()],
+                  actions: ['execute-api:Invoke'],
+                  resources: ['execute-api:/*'],
+                  conditions: {
+                    StringEquals: {
+                      'aws:SourceVpce': e.vpcEndpointId,
+                    },
+                  },
+                });
+              }
+            ),
+          })
+        : undefined,
     });
 
     api.addGatewayResponse('Api4XX', {
@@ -985,7 +1122,10 @@ export class Api extends Construct {
     this.imageGenerationModelIds = imageGenerationModelIds;
     this.videoGenerationModelIds = videoGenerationModelIds;
     this.endpointNames = endpointNames;
-    this.agentNames = Object.keys(agentMap);
+    this.agents = agents.map((agent) => ({
+      displayName: agent.displayName,
+      description: agent.description,
+    }));
     this.fileBucket = fileBucket;
     this.getFileDownloadSignedUrlFunction = getFileDownloadSignedUrlFunction;
   }
