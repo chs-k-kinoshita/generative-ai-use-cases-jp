@@ -12,6 +12,7 @@ import {
 import LandingPage from './pages/LandingPage';
 import Setting from './pages/Setting';
 import StatPage from './pages/StatPage.tsx';
+import AdminOnlyPage from './pages/AdminPage.tsx';
 import ChatPage from './pages/ChatPage';
 import SharedChatPage from './pages/SharedChatPage';
 import SummarizePage from './pages/SummarizePage';
@@ -87,6 +88,10 @@ const routes: RouteObject[] = [
   {
     path: '/stats',
     element: <StatPage />,
+  },
+  {
+    path: '/admin-only',
+    element: <AdminOnlyPage />,
   },
   {
     path: '/chat',
