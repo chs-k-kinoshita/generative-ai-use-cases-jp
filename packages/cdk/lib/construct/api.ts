@@ -833,6 +833,15 @@ export class Api extends Construct {
     table.grantReadData(getTokenUsageFunction);
     props.statsTable.grantReadData(getTokenUsageFunction);
 
+    // Lambda function for admin-only actions
+    const adminOnlyFunction = new NodejsFunction(this, 'AdminOnlyFunction', {
+      runtime: LAMBDA_RUNTIME_NODEJS,
+      entry: './lambda/adminOnly.ts',
+      timeout: Duration.minutes(1),
+      vpc,
+      securityGroups,
+    });
+
     // API Gateway
     const authorizer = new CognitoUserPoolsAuthorizer(this, 'Authorizer', {
       cognitoUserPools: [userPool],
@@ -1138,6 +1147,15 @@ export class Api extends Construct {
     tokenUsageResource.addMethod(
       'GET',
       new LambdaIntegration(getTokenUsageFunction),
+      commonAuthorizerProps
+    );
+
+    // GET: /admin-only/test-invoke
+    const adminResource = api.root.addResource('admin-only');
+    const adminOnlyTestInvokeResorce = adminResource.addResource('test-invoke');
+    adminOnlyTestInvokeResorce.addMethod(
+      'GET',
+      new LambdaIntegration(adminOnlyFunction),
       commonAuthorizerProps
     );
 

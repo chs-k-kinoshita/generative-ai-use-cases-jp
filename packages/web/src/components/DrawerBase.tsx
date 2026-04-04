@@ -4,7 +4,7 @@ import { Link } from 'react-router-dom';
 import useSWR from 'swr';
 import useVersion from '../hooks/useVersion';
 import IconWithDot from './IconWithDot';
-import { PiChartBar, PiGear } from 'react-icons/pi';
+import { PiChartBar, PiGear, PiSquaresFour } from 'react-icons/pi';
 import { fetchAuthSession } from 'aws-amplify/auth';
 import useUserSetting from '../hooks/useUserSetting';
 import { useTranslation } from 'react-i18next';
@@ -27,6 +27,9 @@ const DrawerBase: React.FC<Props> = (props) => {
   const email = useMemo<string>(() => {
     return (data?.tokens?.idToken?.payload.email ?? '') as string;
   }, [data]);
+  const groups = useMemo<string[]>(() => {
+    return (data?.tokens?.idToken?.payload['cognito:groups'] ?? []) as string[];
+  }, [data]);
 
   const hasUpdate = getHasUpdate();
 
@@ -45,6 +48,11 @@ const DrawerBase: React.FC<Props> = (props) => {
               <div className="truncate text-xs">{email}</div>
             )}
             <div className="grow" />
+            {groups.includes('admin') && (
+              <Link to="/admin-only" title="AdminOnly">
+                <PiSquaresFour className="text-lg" />
+              </Link>
+            )}
             <Link to="/stats" title={t('stat.title')}>
               <PiChartBar className="text-lg" />
             </Link>
