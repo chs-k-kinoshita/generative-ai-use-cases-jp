@@ -15,3 +15,7 @@ cdk.context.json
 # Coding Asssitant
 .kiro/settings
 .kiro/specs
+deploy.log
+
+**/.claude/sessions
+**/.claude/state

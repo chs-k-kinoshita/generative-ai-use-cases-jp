@@ -24,6 +24,7 @@ import {
   PiCactusBold,
   PiNotebook,
   PiGraph,
+  PiMagnifyingGlass,
 } from 'react-icons/pi';
 import { Outlet } from 'react-router-dom';
 import Drawer, { ItemProps } from './components/Drawer';
@@ -49,6 +50,8 @@ const agentCoreEnabled: boolean =
   import.meta.env.VITE_APP_AGENT_CORE_ENABLED === 'true';
 const agentBuilderEnabled: boolean =
   import.meta.env.VITE_APP_AGENT_CORE_AGENT_BUILDER_ENABLED === 'true';
+const researchAgentEnabled: boolean =
+  import.meta.env.VITE_APP_RESEARCH_AGENT_ENABLED === 'true';
 
 const {
   visionEnabled,
@@ -161,6 +164,15 @@ const App: React.FC = () => {
           sub: 'Experimental',
         }
       : null,
+    researchAgentEnabled
+      ? {
+          label: t('research.label'),
+          to: '/research',
+          icon: <PiMagnifyingGlass />,
+          display: 'usecase' as const,
+          sub: 'Experimental',
+        }
+      : null,
     flowChatEnabled
       ? {
           label: t('navigation.flowChat'),
@@ -263,12 +275,14 @@ const App: React.FC = () => {
           display: 'usecase' as const,
         }
       : null,
-    {
-      label: t('navigation.speechRecognition'),
-      to: '/transcribe',
-      icon: <PiSpeakerHighBold />,
-      display: 'tool' as const,
-    },
+    enabled('transcribe')
+      ? {
+          label: t('navigation.speechRecognition'),
+          to: '/transcribe',
+          icon: <PiSpeakerHighBold />,
+          display: 'tool' as const,
+        }
+      : null,
     optimizePromptEnabled
       ? {
           label: t('navigation.promptOptimization'),
