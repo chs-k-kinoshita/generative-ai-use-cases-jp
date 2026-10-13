@@ -198,6 +198,8 @@ const baseStackInputSchema = z.object({
   allowedIpV4AddressRanges: z.array(z.string()).nullish(),
   allowedIpV6AddressRanges: z.array(z.string()).nullish(),
   allowedCountryCodes: z.array(z.string()).nullish(),
+  // CORS (additional origins allowed to call the API, e.g. http://localhost:5173 for local development)
+  additionalCorsAllowedOrigins: z.array(z.string()).nullish(),
   // Custom Domain
   hostName: z.string().nullish(),
   domainName: z.string().nullish(),

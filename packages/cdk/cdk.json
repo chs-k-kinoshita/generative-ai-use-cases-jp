@@ -77,6 +77,7 @@
     "allowedIpV4AddressRanges": null,
     "allowedIpV6AddressRanges": null,
     "allowedCountryCodes": null,
+    "additionalCorsAllowedOrigins": ["http://localhost:5173"],
     "hostName": null,
     "domainName": null,
     "hostedZoneId": null,

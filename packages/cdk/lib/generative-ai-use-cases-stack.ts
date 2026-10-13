@@ -429,6 +429,8 @@ export class GenerativeAiUseCasesStack extends Stack {
       allowedOrigins = [albOrigin, closedWebUrl];
       displayWebUrl = closedWebUrl;
     }
+    // Additional origins (e.g. http://localhost:5173 for local development)
+    allowedOrigins.push(...(params.additionalCorsAllowedOrigins ?? []));
     api.apiHandler.addEnvironment('ALLOWED_ORIGINS', allowedOrigins.join(','));
 
     // Cfn Outputs
